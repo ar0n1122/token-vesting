@@ -1,22 +1,26 @@
-import { ReactNode } from 'react'
+'use client'
 
-import { AppAlert } from '@/components/app-alert'
-import { useSolana } from '@/components/solana/use-solana'
-import { useTokenvestingProgram } from '@/features/tokenvesting/data-access/use-tokenvesting-program'
+import {ReactNode} from 'react'
+import {useVestingProgram} from '../tokenvesting-data-access'
+import {AppAlert} from '@/components/app-alert'
 
-export function TokenvestingUiProgramGuard({ children }: { children: ReactNode }) {
-  const { cluster } = useSolana()
-  const programAccountQuery = useTokenvestingProgram()
+export function TokenvestingUiProgramGuard({children}: {children: ReactNode}) {
+    const {getProgramAccount} = useVestingProgram()
 
-  if (programAccountQuery.isLoading) {
-    return <span className="loading loading-spinner loading-lg"></span>
-  }
+    if (getProgramAccount.isLoading) {
+        return <div className="text-center">Loading program...</div>
+    }
 
-  if (!programAccountQuery.data?.value) {
-    return (
-      <AppAlert>Program account not found on {cluster.label}. Be sure to deploy your program and try again.</AppAlert>
-    )
-  }
+    if (getProgramAccount.isError) {
+        return (
+            <AppAlert>
+                <div>
+                    <p className="mb-2">Program account not found.</p>
+                    <p>Make sure you have deployed the program and are on the correct cluster.</p>
+                </div>
+            </AppAlert>
+        )
+    }
 
-  return children
+    return <>{children}</>
 }

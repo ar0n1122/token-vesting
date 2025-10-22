@@ -1,13 +1,13 @@
-import { useSolana } from '@/components/solana/use-solana'
-import { WalletDropdown } from '@/components/wallet-dropdown'
-import { AppHero } from '@/components/app-hero'
-import { TokenvestingUiButtonInitialize } from './ui/tokenvesting-ui-button-initialize'
-import { TokenvestingUiList } from './ui/tokenvesting-ui-list'
-import { TokenvestingUiProgramExplorerLink } from './ui/tokenvesting-ui-program-explorer-link'
-import { TokenvestingUiProgramGuard } from './ui/tokenvesting-ui-program-guard'
+import {useSolana} from '@/components/solana/use-solana'
+import {WalletDropdown} from '@/components/wallet-dropdown'
+import {AppHero} from '@/components/app-hero'
+import {TokenvestingUiButtonInitialize} from './ui/tokenvesting-ui-button-initialize'
+import {TokenvestingUiList} from './ui/tokenvesting-ui-list'
+import {TokenvestingUiProgramExplorerLink} from './ui/tokenvesting-ui-program-explorer-link'
+import {TokenvestingUiProgramGuard} from './ui/tokenvesting-ui-program-guard'
 
 export default function TokenvestingFeature() {
-  const { account } = useSolana()
+  const {account} = useSolana()
 
   return (
     <TokenvestingUiProgramGuard>
@@ -23,14 +23,14 @@ export default function TokenvestingFeature() {
           <TokenvestingUiProgramExplorerLink />
         </p>
         {account ? (
-          <TokenvestingUiButtonInitialize account={account} />
+          <TokenvestingUiButtonInitialize account={account.address} />
         ) : (
-          <div style={{ display: 'inline-block' }}>
+          <div style={{display: 'inline-block'}}>
             <WalletDropdown />
           </div>
         )}
       </AppHero>
-      {account ? <TokenvestingUiList account={account} /> : null}
+      {account ? <TokenvestingUiList account={account.address} /> : null}
     </TokenvestingUiProgramGuard>
   )
 }

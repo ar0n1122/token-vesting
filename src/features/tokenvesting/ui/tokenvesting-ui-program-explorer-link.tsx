@@ -1,7 +1,13 @@
-import { TOKENVESTING_PROGRAM_ADDRESS } from '@project/anchor'
-import { AppExplorerLink } from '@/components/app-explorer-link'
-import { ellipsify } from '@wallet-ui/react'
+'use client'
+
+import {AppExplorerLink} from '@/components/app-explorer-link'
+import {TOKENVESTING_PROGRAM_ID} from '../../../lib/tokenvesting-anchor'
 
 export function TokenvestingUiProgramExplorerLink() {
-  return <AppExplorerLink address={TOKENVESTING_PROGRAM_ADDRESS} label={ellipsify(TOKENVESTING_PROGRAM_ADDRESS)} />
+    return (
+        <AppExplorerLink
+            address={TOKENVESTING_PROGRAM_ID.toString()}
+            label="View Program on Explorer"
+        />
+    )
 }
