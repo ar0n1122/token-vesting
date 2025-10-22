@@ -3,15 +3,16 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Program Architecture](#program-architecture)
-3. [Account Structures](#account-structures)
-4. [Instructions](#instructions)
-5. [Security Model](#security-model)
-6. [Program Derived Addresses (PDAs)](#program-derived-addresses-pdas)
-7. [Data Layout](#data-layout)
-8. [Implementation Details](#implementation-details)
-9. [Usage Examples](#usage-examples)
-10. [Limitations and Future Extensions](#limitations-and-future-extensions)
+2. [Getting Started](#getting-started)
+3. [Program Architecture](#program-architecture)
+4. [Account Structures](#account-structures)
+5. [Instructions](#instructions)
+6. [Security Model](#security-model)
+7. [Program Derived Addresses (PDAs)](#program-derived-addresses-pdas)
+8. [Data Layout](#data-layout)
+9. [Implementation Details](#implementation-details)
+10. [Usage Examples](#usage-examples)
+11. [Limitations and Future Extensions](#limitations-and-future-extensions)
 
 ## Overview
 
@@ -26,20 +27,169 @@ The Token Vesting Program is a Solana smart contract designed to establish the f
 
 ### Current Implementation Scope
 
-This implementation provides the **infrastructure and employee onboarding layer** for a token vesting system. It establishes the necessary account structures, company vesting setups, and individual employee vesting schedules. The current version includes:
+This implementation provides a **complete token vesting system** with full functionality for token distribution over time. It establishes the necessary account structures, company vesting setups, individual employee vesting schedules, and temporal token release mechanics. The current version includes:
 
 - **Company vesting account creation** with treasury setup
 - **Individual employee vesting schedule creation** with time-based parameters
+- **Token claiming functionality** with linear vesting calculations
+- **Cliff period enforcement** preventing early token claims
 - **Account relationship management** between companies and employees
 - **Security framework** with proper access controls and PDA management
+- **Automatic token account creation** for employees via Associated Token Program
 
-The system does not yet implement the temporal mechanics of token release (claiming functionality).
+The system implements complete temporal mechanics of token release with linear vesting calculations.
 
 ### Program Identifier
 
 ```
 Program ID: Count3AcZucFDPSFBAeHkQ6AvttieKUkyJ8HiQGhQwe
+Network: Localnet (for development)
+Anchor Version: 0.32.1
 ```
+
+### Program Configuration
+
+**Anchor.toml Configuration:**
+
+```toml
+[programs.localnet]
+tokenvesting = "Count3AcZucFDPSFBAeHkQ6AvttieKUkyJ8HiQGhQwe"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[test]
+startup_wait = 20000
+```
+
+**Key Configuration Notes:**
+
+- **Localnet Deployment**: Currently configured for local development
+- **Startup Wait**: 20-second wait ensures validator is ready for tests
+- **Deterministic ID**: Program ID is fixed for consistent PDA generation across deployments
+
+## Getting Started
+
+### Prerequisites for Beginners
+
+Before diving into this token vesting program, you should have basic understanding of:
+
+- **Solana Blockchain**: Accounts, programs, transactions, and Program Derived Addresses (PDAs)
+- **SPL Tokens**: Solana's token standard and Associated Token Accounts
+- **Anchor Framework**: Solana's development framework for smart contracts
+- **TypeScript/JavaScript**: For client-side interactions
+
+### Quick Concept Overview
+
+**What is Token Vesting?**
+Token vesting is a mechanism that releases tokens to recipients over time rather than all at once. Think of it like a salary that's paid monthly instead of yearly - it ensures commitment and prevents immediate selling.
+
+**Key Players:**
+
+- **Company/Employer**: Creates vesting programs and allocates tokens to employees
+- **Employee/Beneficiary**: Receives tokens gradually over time according to the schedule
+- **Treasury**: Holds the company's tokens until they're claimed by employees
+
+**The Process:**
+
+1. **Setup**: Company creates a vesting program and deposits tokens
+2. **Allocation**: Company creates individual vesting schedules for employees
+3. **Cliff Period**: Initial waiting period where no tokens can be claimed
+4. **Vesting**: Tokens become available linearly over time
+5. **Claiming**: Employees claim their vested tokens when available
+
+### Core Concepts Explained
+
+#### Program Derived Addresses (PDAs)
+
+PDAs are special Solana addresses that programs can "sign" for. Think of them as smart contract-controlled bank accounts:
+
+```
+Company "Acme Corp" → Creates PDA account to manage their vesting program
+                   → Creates PDA treasury account to hold tokens
+Employee Alice     → Gets her own PDA account linked to "Acme Corp"
+Employee Bob       → Gets his own PDA account linked to "Acme Corp"
+```
+
+#### Linear Vesting Calculation
+
+If you're vesting 12,000 tokens over 12 months:
+
+- Month 0: 0 tokens available (if there's a cliff)
+- Month 1: 1,000 tokens available
+- Month 6: 6,000 tokens available
+- Month 12: 12,000 tokens available (fully vested)
+
+#### Time Parameters
+
+- **start_time**: When vesting begins (e.g., hire date)
+- **end_time**: When vesting completes (e.g., 4 years later)
+- **cliff_time**: First date when tokens can be claimed (e.g., 1 year after start)
+
+### Development Setup
+
+#### 1. Install Dependencies
+
+```bash
+# Install Rust and Solana CLI
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh
+sh -c "$(curl -sSfL https://release.solana.com/v1.18.4/install)"
+
+# Install Anchor
+cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+avm install latest
+avm use latest
+
+# Install Node.js dependencies
+npm install @coral-xyz/anchor @solana/web3.js @solana/spl-token
+```
+
+#### 2. Build and Deploy (Local Development)
+
+```bash
+# Clone and build the program
+cd anchor
+anchor build
+
+# Start local Solana test validator
+solana-test-validator
+
+# Deploy program to local validator (in another terminal)
+anchor deploy
+```
+
+#### 3. Run Tests
+
+```bash
+# Run the test suite
+anchor test
+```
+
+### Real-World Example Walkthrough
+
+Let's walk through a complete example of **Alice joining Acme Corp** and receiving vested tokens:
+
+#### Scenario:
+
+- Alice joins Acme Corp on January 1st, 2024
+- She gets 48,000 ACME tokens vested over 4 years
+- 1-year cliff (can't claim until January 1st, 2025)
+- Linear vesting after cliff
+
+#### Timeline:
+
+```
+Jan 1, 2024  │ Alice hired, vesting starts (0 claimable)
+             │
+Jan 1, 2025  │ Cliff ends (12,000 tokens claimable = 25% of 48,000)
+             │
+Jul 1, 2025  │ 18 months in (18,000 tokens claimable = 37.5% of 48,000)
+             │
+Jan 1, 2028  │ Fully vested (48,000 tokens claimable = 100%)
+```
+
+This documentation will show you exactly how to implement this scenario with code examples!
 
 ## Program Architecture
 
@@ -249,6 +399,84 @@ This design ensures:
 - **Scalability**: Same company can have unlimited employees
 - **Security**: Deterministic addresses prevent spoofing
 
+#### ClaimTokens Context
+
+```rust
+#[derive(Accounts)]
+#[instruction(company_name: String)]
+pub struct ClaimTokens<'info> {
+    #[account(mut)]
+    pub beneficiary: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"employee_vesting", beneficiary.key().as_ref(), vesting_account.key().as_ref()],
+        bump = employee_account.bump,
+        has_one = beneficiary,
+        has_one = vesting_account
+    )]
+    pub employee_account: Account<'info, EmployeeAccount>,
+    #[account(
+        mut,
+        seeds = [company_name.as_ref()],
+        bump = vesting_account.bump,
+        has_one = treasury_token_account,
+        has_one = mint
+    )]
+    pub vesting_account: Account<'info, VestingAccount>,
+    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(mut)]
+    pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+        init_if_needed,
+        payer = beneficiary,
+        associated_token::mint = mint,
+        associated_token::authority = beneficiary,
+        associated_token::token_program = token_program
+    )]
+    pub employee_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+```
+
+**Constraint Analysis:**
+
+1. **Beneficiary Account**
+   - `mut`: Account modified for potential associated token account creation costs
+   - `Signer`: Employee must sign to claim their own tokens
+   - Must be the same address as stored in employee_account
+
+2. **Employee Account**
+   - `mut`: Modified to update total_withdrawn amount
+   - Complex PDA validation with stored bump for security
+   - `has_one = beneficiary`: Ensures employee can only claim their own tokens
+   - `has_one = vesting_account`: Links to correct company vesting program
+
+3. **Vesting Account**
+   - `mut`: Could be modified for future features (currently read-only)
+   - PDA derived from company_name with stored bump
+   - `has_one = treasury_token_account`: Ensures treasury account ownership
+   - `has_one = mint`: Validates token mint consistency
+
+4. **Treasury Token Account**
+   - `mut`: Modified as tokens are transferred out
+   - Source account for token transfers
+   - Authority controlled by treasury PDA
+
+5. **Employee Token Account**
+   - `init_if_needed`: Creates associated token account automatically if needed
+   - `payer = beneficiary`: Employee pays for their token account creation
+   - `associated_token::*`: Standard Associated Token Program constraints
+   - Destination account for claimed tokens
+
+**Advanced Security Features:**
+
+- **Bump Validation**: Uses stored canonical bumps to prevent bump grinding attacks
+- **Cross-Account Validation**: Multiple `has_one` constraints ensure account relationships
+- **Associated Token Integration**: Seamlessly handles token account creation for employees
+- **Authority Separation**: Treasury PDA authority prevents unauthorized access
+
 ## Instructions
 
 ### create_vesting_account
@@ -341,6 +569,73 @@ create_employee_vesting(
     10000,         // 10,000 tokens (total_amount)
     1735689600     // Jan 1, 2025 (cliff_time)
 )
+```
+
+### claim_tokens
+
+**Function Signature:**
+
+```rust
+pub fn claim_tokens(ctx: Context<ClaimTokens>, _company_name: String) -> Result<()>
+```
+
+**Purpose:** Allows employees to claim their vested tokens based on the current time and vesting schedule parameters.
+
+**Parameters:**
+
+- `ctx`: Anchor context containing validated accounts for the claiming operation
+- `_company_name`: String identifier for the company (used for PDA derivation, underscore indicates it's used in constraints but not in function body)
+
+**Execution Flow:**
+
+1. **Cliff Period Validation**: Checks if current time >= cliff_time, returns `ClaimNotAvailableYet` error if too early
+2. **Vested Amount Calculation**:
+   - If current time >= end_time: Employee is fully vested (can claim total_amount)
+   - Otherwise: Linear vesting calculation: `(total_amount * time_since_start) / total_vesting_time`
+3. **Claimable Amount Calculation**: `vested_amount - total_withdrawn`
+4. **Zero Claim Check**: Returns `NothingToClaim` error if claimable_amount == 0
+5. **Token Transfer**: Uses Cross-Program Invocation (CPI) to transfer tokens from treasury to employee
+6. **State Update**: Increments `total_withdrawn` by the claimed amount
+
+**State Changes:**
+
+- Transfers tokens from company treasury to employee's token account
+- Updates `employee_account.total_withdrawn` to track cumulative claims
+- Creates employee's associated token account if it doesn't exist
+
+**Security Features:**
+
+- **Cliff Enforcement**: Prevents claims before cliff period expires
+- **Linear Vesting**: Ensures employees can only claim proportional to time elapsed
+- **Duplicate Claim Protection**: Tracks withdrawn amounts to prevent double-claiming
+- **PDA Authority**: Uses treasury PDA as signing authority for secure token transfers
+- **Account Validation**: Ensures employee can only claim from their own vesting schedule
+
+**Real-World Example:**
+
+```rust
+// Alice hired Jan 1, 2024, trying to claim on July 1, 2025 (18 months later)
+// 4-year vesting (48 months), 1-year cliff (12 months), 10,000 tokens
+// Since 18 months > 12 months (cliff passed)
+// Vested amount = (10,000 * 18) / 48 = 3,750 tokens
+// If Alice never claimed before, she can claim all 3,750 tokens
+claim_tokens(ctx, "Acme Corp") // Claims 3,750 tokens
+```
+
+**Vesting Calculation Algorithm:**
+
+```rust
+// Linear vesting calculation (implemented in claim_tokens)
+let time_since_start = current_time.saturating_sub(start_time);
+let total_vesting_time = end_time.saturating_sub(start_time);
+
+let vested_amount = if current_time >= end_time {
+    total_amount  // Fully vested
+} else {
+    (total_amount * time_since_start) / total_vesting_time  // Proportional vesting
+};
+
+let claimable_amount = vested_amount.saturating_sub(total_withdrawn);
 ```
 
 ## Security Model
@@ -492,11 +787,29 @@ pub enum ErrorCode {
 - **Invalid Beneficiary**: Malformed or invalid beneficiary public key
 - **Reference Errors**: Invalid or non-existent vesting account reference
 
-**Future Error Handling (for claiming functionality):**
+**Token Claiming Errors:**
 
-- **ClaimNotAvailableYet**: Employee attempts to claim before cliff period ends
-- **NothingToClaim**: Employee has already claimed all available tokens
-- **Insufficient Treasury**: Treasury lacks sufficient tokens for claim
+- **ClaimNotAvailableYet** (`0x1770`): Employee attempts to claim before cliff period ends
+
+  ```rust
+  // Triggered when: current_time < employee_account.cliff_time
+  if now < employee_account.cliff_time {
+      return Err(ErrorCode::ClaimNotAvailableYet.into());
+  }
+  ```
+
+- **NothingToClaim** (`0x1771`): Employee has already claimed all available tokens
+
+  ```rust
+  // Triggered when: vested_amount - total_withdrawn = 0
+  if claimable_amount == 0 {
+      return Err(ErrorCode::NothingToClaim.into());
+  }
+  ```
+
+- **Insufficient Treasury Funds**: SPL Token Program error when treasury lacks tokens
+- **Invalid Token Account**: Attempting to claim to incorrect associated token account
+- **Authority Mismatch**: PDA authority validation failures during token transfers
 
 ### Gas Optimization
 
@@ -506,10 +819,59 @@ pub enum ErrorCode {
 
 ### Cross-Program Invocations (CPIs)
 
-The program interacts with:
+The program integrates with multiple Solana native programs through Cross-Program Invocations:
 
-- **System Program**: For account creation and rent transfers
-- **Token Program**: For treasury token account initialization
+#### 1. System Program Integration
+
+- **Account Creation**: Creates new vesting and employee accounts
+- **Rent Transfers**: Handles rent-exemption payments
+- **Space Allocation**: Allocates storage space for program accounts
+
+#### 2. SPL Token Program Integration
+
+- **Token Account Creation**: Creates treasury token accounts during setup
+- **Token Transfers**: Executes secure token transfers during claims
+- **Authority Management**: Uses PDA authorities for treasury control
+
+#### 3. Associated Token Program Integration
+
+- **Automatic Account Creation**: Creates employee token accounts seamlessly
+- **Standardized Addresses**: Uses deterministic token account addresses
+- **Gas Optimization**: Reduces transaction complexity for end users
+
+**Key CPI Implementation in `claim_tokens`:**
+
+```rust
+// Token transfer using treasury PDA authority
+let transfer_cpi_accounts = TransferChecked {
+    from: ctx.accounts.treasury_token_account.to_account_info(),
+    mint: ctx.accounts.mint.to_account_info(),
+    to: ctx.accounts.employee_token_account.to_account_info(),
+    authority: ctx.accounts.treasury_token_account.to_account_info(),
+};
+
+let cpi_program = ctx.accounts.token_program.to_account_info();
+
+// PDA signing seeds for treasury authority
+let signer_seeds: &[&[&[u8]]] = &[&[
+    b"vesting_treasury",
+    ctx.accounts.vesting_account.company_name.as_ref(),
+    &[ctx.accounts.vesting_account.treasury_bump],
+]];
+
+// Execute CPI with PDA authority
+let cpi_context = CpiContext::new(cpi_program, transfer_cpi_accounts)
+    .with_signer(signer_seeds);
+
+token_interface::transfer_checked(cpi_context, claimable_amount as u64, decimals)?;
+```
+
+**CPI Security Features:**
+
+- **PDA Authority**: Only the program can sign for treasury transfers
+- **Signer Seeds**: Uses stored canonical bumps to prevent authority spoofing
+- **Interface Validation**: Ensures correct program invocations through type safety
+- **Account Validation**: All CPI accounts validated through Anchor constraints
 
 ## Usage Examples
 
@@ -645,6 +1007,122 @@ for (const employee of employees) {
 }
 ```
 
+#### Step 3: Token Claiming (Employee Side)
+
+```typescript
+// Employee claims their vested tokens
+async function claimVestedTokens(beneficiaryWallet: Keypair, companyName: string, vestingAccount: PublicKey) {
+  // Set up program with employee's wallet
+  const employeeProvider = new AnchorProvider(connection, new NodeWallet(beneficiaryWallet), {
+    commitment: 'confirmed',
+  })
+  const employeeProgram = new Program(idl, programId, employeeProvider)
+
+  // Derive employee's vesting account
+  const [employeeAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from('employee_vesting'), beneficiaryWallet.publicKey.toBuffer(), vestingAccount.toBuffer()],
+    program.programId,
+  )
+
+  // Derive treasury account
+  const [treasuryAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from('vesting_treasury'), Buffer.from(companyName)],
+    program.programId,
+  )
+
+  // Employee's associated token account (auto-created if needed)
+  const employeeTokenAccount = getAssociatedTokenAddressSync(
+    tokenMint,
+    beneficiaryWallet.publicKey,
+    false, // allowOwnerOffCurve
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  )
+
+  try {
+    const tx = await employeeProgram.methods
+      .claimTokens(companyName)
+      .accounts({
+        beneficiary: beneficiaryWallet.publicKey,
+        employeeAccount: employeeAccount,
+        vestingAccount: vestingAccount,
+        mint: tokenMint,
+        treasuryTokenAccount: treasuryAccount,
+        employeeTokenAccount: employeeTokenAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc()
+
+    console.log(`Tokens claimed successfully! Transaction: ${tx}`)
+    return tx
+  } catch (error) {
+    if (error.message.includes('ClaimNotAvailableYet')) {
+      console.log('Claiming not available yet - cliff period not reached')
+    } else if (error.message.includes('NothingToClaim')) {
+      console.log('No tokens available to claim at this time')
+    } else {
+      console.error('Claiming failed:', error)
+    }
+    throw error
+  }
+}
+
+// Example usage
+await claimVestedTokens(aliceKeypair, 'Acme Corp', vestingAccount)
+```
+
+#### Step 4: Checking Vesting Status
+
+```typescript
+// Utility function to calculate current vesting status
+async function getVestingStatus(employeeAccount: PublicKey, program: Program<Vesting>): Promise<VestingStatus> {
+  const employeeData = await program.account.employeeAccount.fetch(employeeAccount)
+  const currentTime = Math.floor(Date.now() / 1000) // Current Unix timestamp
+
+  // Check if cliff period has passed
+  const cliffPassed = currentTime >= employeeData.cliffTime
+
+  // Calculate vested amount
+  let vestedAmount: number
+  if (currentTime >= employeeData.endTime) {
+    // Fully vested
+    vestedAmount = employeeData.totalAmount.toNumber()
+  } else if (currentTime <= employeeData.startTime) {
+    // Not started
+    vestedAmount = 0
+  } else {
+    // Linear vesting calculation
+    const timeSinceStart = currentTime - employeeData.startTime.toNumber()
+    const totalVestingTime = employeeData.endTime.toNumber() - employeeData.startTime.toNumber()
+    vestedAmount = Math.floor((employeeData.totalAmount.toNumber() * timeSinceStart) / totalVestingTime)
+  }
+
+  const claimableAmount = Math.max(0, vestedAmount - employeeData.totalWithdrawn.toNumber())
+
+  return {
+    totalAllocated: employeeData.totalAmount.toNumber(),
+    vestedAmount,
+    claimableAmount,
+    totalClaimed: employeeData.totalWithdrawn.toNumber(),
+    cliffPassed,
+    fullyVested: currentTime >= employeeData.endTime,
+    vestingProgress: totalVestingTime > 0 ? timeSinceStart / totalVestingTime : 0,
+  }
+}
+
+interface VestingStatus {
+  totalAllocated: number
+  vestedAmount: number
+  claimableAmount: number
+  totalClaimed: number
+  cliffPassed: boolean
+  fullyVested: boolean
+  vestingProgress: number // 0-1 representing vesting completion percentage
+}
+```
+
 ### Account Derivation
 
 #### Company Account Derivation
@@ -725,14 +1203,14 @@ class VestingPDAManager {
 
 ### Current Limitations
 
-1. **No Token Deposits**: Cannot yet deposit tokens into treasury
-2. **No Token Claiming**: No mechanism for employees to claim vested tokens
-3. **No Vesting Calculation**: No time-based vesting amount calculations
-4. **No Schedule Modifications**: Cannot update or revoke existing vesting schedules
-5. **No Treasury Management**: No functions to manage treasury token balances
-6. **Single Owner Model**: No multi-signature or delegated authority for companies
-7. **No Pause Mechanism**: No emergency pause functionality
-8. **No Vesting Events**: No event emission for tracking vesting milestones
+1. **Manual Token Deposits**: Tokens must be manually deposited to treasury using external SPL token tools
+2. **No Schedule Modifications**: Cannot update or revoke existing vesting schedules after creation
+3. **Linear Vesting Only**: Only supports linear vesting curves, no custom vesting schedules
+4. **Single Owner Model**: No multi-signature or delegated authority for companies
+5. **No Pause Mechanism**: No emergency pause functionality for vesting programs
+6. **No Vesting Events**: No event emission for tracking vesting milestones and claims
+7. **No Partial Claims**: Employees must claim all available tokens at once
+8. **No Vesting Categories**: No support for different vesting types (equity, bonus, etc.)
 
 ### Recommended Extensions
 
@@ -971,10 +1449,14 @@ This token vesting program provides a comprehensive foundation for building ente
 **✅ Completed Features:**
 
 - **Company Infrastructure**: Complete vesting account and treasury setup
-- **Employee Onboarding**: Individual vesting schedule creation with time parameters
-- **Security Framework**: PDA-based access control and bump validation
-- **Scalable Design**: Multi-company, multi-employee architecture
-- **Account Relationships**: Proper linking between companies and employees
+- **Employee Vesting Schedules**: Individual vesting schedule creation with time-based parameters
+- **Token Claiming System**: Full implementation of linear vesting with time-based calculations
+- **Cliff Period Enforcement**: Prevents early token claims before cliff expiration
+- **Automatic Token Accounts**: Uses Associated Token Program for seamless employee token account creation
+- **Security Framework**: PDA-based access control and canonical bump validation
+- **Scalable Design**: Multi-company, multi-employee architecture supporting unlimited scale
+- **Account Relationships**: Robust linking between companies and employees with validation
+- **Error Handling**: Comprehensive error types for all failure scenarios
 
 **🔄 Architecture Highlights:**
 
@@ -987,14 +1469,14 @@ This token vesting program provides a comprehensive foundation for building ente
 **🚀 Ready for Extension:**
 The modular design enables straightforward implementation of:
 
-- Token claiming mechanisms with time-based calculations
-- Treasury management and deposit functionality
+- Treasury management and automated deposit functionality
 - Administrative controls and emergency features
 - Event emission for comprehensive tracking
 - Multi-signature and governance integration
+- Advanced vesting curves (exponential, step-function, etc.)
 
 **💼 Production Readiness:**
-With the addition of claiming functionality and treasury management, this foundation can support:
+This complete implementation is ready for production use and can support:
 
 - **Startup Equity**: Employee token vesting with cliff periods
 - **DAO Governance**: Community reward distribution
@@ -1002,3 +1484,190 @@ With the addition of claiming functionality and treasury management, this founda
 - **Partnership Agreements**: Milestone-based token releases
 
 The use of Program Derived Addresses ensures security and deterministic behavior, while Anchor's constraint system provides robust validation and error handling. The two-tier account structure (company → employees) scales efficiently and maintains clear separation of concerns, making this an ideal foundation for production token vesting platforms.
+
+## Troubleshooting Guide
+
+### Common Issues for Beginners
+
+#### 1. "Account does not exist" Errors
+
+**Problem**: Trying to interact with accounts that haven't been created yet.
+
+**Solution**: Ensure you've created accounts in the right order:
+
+```typescript
+// ❌ Wrong - trying to create employee before company exists
+await createEmployeeVesting(...)
+
+// ✅ Correct - create company first, then employee
+await createVestingAccount('Company Name')
+await createEmployeeVesting(...)
+```
+
+#### 2. "ClaimNotAvailableYet" Error
+
+**Problem**: Trying to claim tokens before the cliff period ends.
+
+**Solutions**:
+
+- Check your cliff_time is set correctly (Unix timestamp)
+- Verify current time has passed cliff_time
+- For testing, use a past cliff_time or modify system clock
+
+```typescript
+// Convert dates to Unix timestamps properly
+const cliffTime = Math.floor(new Date('2024-01-01').getTime() / 1000)
+```
+
+#### 3. "NothingToClaim" Error
+
+**Problem**: No tokens available to claim.
+
+**Possible causes**:
+
+- All tokens already claimed
+- Vesting hasn't started (current_time < start_time)
+- Math.floor truncation in vesting calculations
+
+```typescript
+// Debug vesting status before claiming
+const status = await getVestingStatus(employeeAccount, program)
+console.log('Vesting status:', status)
+```
+
+#### 4. PDA Derivation Mismatches
+
+**Problem**: "InvalidSeeds" or account validation errors.
+
+**Solution**: Ensure PDA seeds match exactly:
+
+```typescript
+// Company name must match exactly (case-sensitive)
+const companyName = 'Acme Corp' // Not 'acme corp' or 'Acme Corp '
+
+// Seed order must be exact
+const [employeeAccount] = PublicKey.findProgramAddressSync(
+  [
+    Buffer.from('employee_vesting'), // Must be exact string
+    beneficiary.toBuffer(), // Employee's public key
+    vestingAccount.toBuffer(), // Company vesting account
+  ],
+  program.programId,
+)
+```
+
+#### 5. Insufficient SOL for Rent
+
+**Problem**: "Insufficient funds" when creating accounts.
+
+**Solution**: Ensure signers have enough SOL:
+
+```typescript
+// Check balance before operations
+const balance = await connection.getBalance(wallet.publicKey)
+console.log(`Wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`)
+
+// Account creation costs ~0.002 SOL per account
+```
+
+#### 6. Token Account Issues
+
+**Problem**: "Invalid token account" or authority errors.
+
+**Solutions**:
+
+- Ensure treasury has sufficient token balance
+- Verify token mint matches between accounts
+- Check Associated Token Account derivation
+
+```typescript
+// Fund treasury after creating vesting account
+await mintTo(connection, payer, tokenMint, treasuryTokenAccount, authority, amount)
+```
+
+### Development Tips
+
+#### 1. Time Management for Testing
+
+```typescript
+// Use recent timestamps for testing
+const now = Math.floor(Date.now() / 1000)
+const startTime = now - 3600 // 1 hour ago
+const cliffTime = now - 1800 // 30 minutes ago (cliff passed)
+const endTime = now + 86400 // 24 hours from now
+```
+
+#### 2. Debugging Vesting Calculations
+
+```typescript
+// Helper function to debug vesting math
+function debugVestingCalculation(startTime: number, endTime: number, totalAmount: number, currentTime: number) {
+  const timeSinceStart = currentTime - startTime
+  const totalVestingTime = endTime - startTime
+  const vestedAmount = Math.floor((totalAmount * timeSinceStart) / totalVestingTime)
+
+  console.log({
+    timeSinceStart,
+    totalVestingTime,
+    vestedAmount,
+    percentageVested: ((timeSinceStart / totalVestingTime) * 100).toFixed(2) + '%',
+  })
+
+  return vestedAmount
+}
+```
+
+#### 3. Account State Inspection
+
+```typescript
+// Check account state for debugging
+async function inspectAccounts(program: Program, vestingAccount: PublicKey, employeeAccount: PublicKey) {
+  const vestingData = await program.account.vestingAccount.fetch(vestingAccount)
+  const employeeData = await program.account.employeeAccount.fetch(employeeAccount)
+
+  console.log('Vesting Account:', {
+    owner: vestingData.owner.toString(),
+    companyName: vestingData.companyName,
+    treasury: vestingData.treasuryTokenAccount.toString(),
+  })
+
+  console.log('Employee Account:', {
+    beneficiary: employeeData.beneficiary.toString(),
+    startTime: new Date(employeeData.startTime.toNumber() * 1000).toISOString(),
+    endTime: new Date(employeeData.endTime.toNumber() * 1000).toISOString(),
+    cliffTime: new Date(employeeData.cliffTime.toNumber() * 1000).toISOString(),
+    totalAmount: employeeData.totalAmount.toString(),
+    totalWithdrawn: employeeData.totalWithdrawn.toString(),
+  })
+}
+```
+
+### Testing Best Practices
+
+1. **Use Consistent Time Zones**: Work in UTC to avoid timezone confusion
+2. **Test Edge Cases**: Start time = cliff time, end time = current time, etc.
+3. **Verify PDAs**: Always log derived addresses and verify they match
+4. **Check Account Data**: Inspect account contents after each operation
+5. **Mock Time**: Use past dates for testing completed vesting scenarios
+
+### Network-Specific Considerations
+
+#### Localnet (Development)
+
+- Fast block times, immediate finality
+- Unlimited SOL via `solana airdrop`
+- Perfect for rapid iteration
+
+#### Devnet (Testing)
+
+- Real network conditions
+- Limited SOL via faucet
+- Good for integration testing
+
+#### Mainnet (Production)
+
+- Real SOL costs
+- Irreversible transactions
+- Requires thorough testing first
+
+This troubleshooting guide should help you navigate the most common issues when working with the token vesting program!
